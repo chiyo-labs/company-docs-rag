@@ -1,0 +1,22 @@
+# 環境変数 (実際のキーを含むため絶対にコミットしない)
+.env
+.env.local
+.env.*.local
+
+# Node.js
+node_modules/
+.next/
+dist/
+out/
+
+# テスト・開発用データ (誤インジェスト防止)
+docs/sample/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
