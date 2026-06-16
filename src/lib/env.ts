@@ -31,3 +31,10 @@ export const OPENAI_API_KEY =
 // --- Anthropic (回答生成) --- 回答生成機能実装時まで任意
 export const ANTHROPIC_API_KEY =
   typeof window === "undefined" ? (process.env.ANTHROPIC_API_KEY ?? null) : null;
+
+// --- 認証 ---
+// 未設定の場合はドメイン制限なし（開発環境向け）
+export const ALLOWED_EMAIL_DOMAIN =
+  typeof window === "undefined"
+    ? (process.env.ALLOWED_EMAIL_DOMAIN ?? null)
+    : null;

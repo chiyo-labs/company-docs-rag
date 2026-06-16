@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 
 type Source = {
   source_file: string;
@@ -10,6 +12,16 @@ type Source = {
 type AnswerResult = {
   answer: string;
   sources: Source[];
+  elapsedMs: number;
+};
+
+type Conversation = {
+  id: number;
+  query: string;
+  answer: string;
+  sources: Source[];
+  elapsed_ms: number | null;
+  created_at: string;
 };
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -32,6 +44,32 @@ export default function Home() {
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [history, setHistory] = useState<Conversation[]>([]);
+  const router = useRouter();
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/conversations");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data as Conversation[]);
+      }
+    } catch {
+      // 履歴取得失敗はサイレントに無視
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadHistory(); }, []);
+
+  async function handleLogout() {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +96,7 @@ export default function Home() {
 
       setResult(data as AnswerResult);
       setStatus("done");
+      await loadHistory();
     } catch {
       setErrorMsg("ネットワークエラーが発生しました");
       setStatus("error");
@@ -69,8 +108,20 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-bold text-gray-900">Company Docs RAG</h1>
-        <p className="mt-1 text-sm text-gray-500">社内文書に質問できます</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Company Docs RAG
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">社内文書に質問できます</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+          >
+            ログアウト
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="mt-6">
           <textarea
@@ -128,6 +179,9 @@ export default function Home() {
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
                 {result.answer}
               </p>
+              <p className="mt-3 text-right text-xs text-gray-400">
+                回答時間: {(result.elapsedMs / 1000).toFixed(1)}秒
+              </p>
             </div>
 
             {displayedSources.length > 0 && (
@@ -150,6 +204,56 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <div className="mt-10">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              過去の質問履歴（最新 {history.length} 件）
+            </p>
+            <div className="space-y-3">
+              {history.map((conv) => (
+                <div
+                  key={conv.id}
+                  className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-sm font-medium text-gray-700">
+                      {conv.query}
+                    </p>
+                    <span className="shrink-0 text-xs text-gray-400">
+                      {new Date(conv.created_at).toLocaleString("ja-JP", {
+                        month: "numeric",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                    {conv.answer}
+                  </p>
+                  {conv.sources.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {conv.sources.slice(0, 3).map((src, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
+                        >
+                          {getFileLabel(src.source_file)}
+                          {src.page_number != null && (
+                            <span className="ml-1 text-gray-400">
+                              p.{src.page_number}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

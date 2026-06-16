@@ -11,9 +11,39 @@ import {
  * `supabase gen types typescript` で自動生成した型に差し替えると
  * クエリ結果が完全に型安全になる。
  */
+type ConversationSource = {
+  source_file: string;
+  page_number: number | null;
+};
+
 export type Database = {
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          id: number;
+          user_id: string;
+          query: string;
+          answer: string;
+          sources: ConversationSource[];
+          elapsed_ms: number | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          query: string;
+          answer: string;
+          sources?: ConversationSource[];
+          elapsed_ms?: number | null;
+        };
+        Update: {
+          query?: string;
+          answer?: string;
+          sources?: ConversationSource[];
+          elapsed_ms?: number | null;
+        };
+        Relationships: [];
+      };
       documents: {
         Row: {
           id: number;
